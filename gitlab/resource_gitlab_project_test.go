@@ -248,6 +248,21 @@ func TestAccGitlabProject_nestedImport(t *testing.T) {
 	})
 }
 
+func TestAccImportURL(t *testing.T) {
+	//var received gitlab.Project
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckGitlabProjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testImportURLOptions(),
+				Check:  checkImportURL,
+			},
+		},
+	})
+}
+
 func testAccCheckGitlabProjectExists(n string, project *gitlab.Project) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		var err error
@@ -480,4 +495,36 @@ resource "gitlab_group" "foo2" {
   visibility_level = "public"
 }
 	`, rInt, rInt, rInt, rInt, rInt, rInt)
+}
+
+func testImportURLOptions() string {
+	return fmt.Sprintf(`
+resource "gitlab_project" "import_url" {
+  name = "import"
+  path = "import"
+  description = " Terraform Import URL Acceptance test"
+
+  # So that acceptance tests can be run in a gitlab organization
+  # with no billing
+  visibility_level = "public"
+  merge_method = "ff"
+  only_allow_merge_if_pipeline_succeeds = true
+  only_allow_merge_if_all_discussions_are_resolved = true
+
+  issues_enabled = false
+  merge_requests_enabled = false
+  approvals_before_merge = 0
+  wiki_enabled = false
+  snippets_enabled = false
+  container_registry_enabled = false
+  shared_runners_enabled = false
+  archived = true
+  import_url = "https://github.com/terraform-providers/terraform-provider-gitlab.git"
+}
+	`)
+}
+
+func checkImportURL(s *terraform.State) error {
+	//rfs := gitlab.RepositoryFilesService
+	return fmt.Errorf("Niceness")
 }

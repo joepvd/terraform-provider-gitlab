@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
@@ -249,7 +250,7 @@ func TestAccGitlabProject_nestedImport(t *testing.T) {
 }
 
 func TestAccImportURL(t *testing.T) {
-	//var received gitlab.Project
+	var received gitlab.Project
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -257,7 +258,10 @@ func TestAccImportURL(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: testImportURLOptions(),
-				Check:  checkImportURL,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckGitlabProjectExists("gitlab_project.import_url", &received),
+					testAccCheckImportURL("gitlab/resource_gitlab_project.go", &received),
+				),
 			},
 		},
 	})
@@ -518,13 +522,28 @@ resource "gitlab_project" "import_url" {
   snippets_enabled = false
   container_registry_enabled = false
   shared_runners_enabled = false
-  archived = true
+  archived = false
   import_url = "https://github.com/terraform-providers/terraform-provider-gitlab.git"
+	default_branch = "master"
 }
 	`)
 }
 
-func checkImportURL(s *terraform.State) error {
-	//rfs := gitlab.RepositoryFilesService
-	return fmt.Errorf("Niceness")
+func testAccCheckImportURL(fp string, project *gitlab.Project) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		time.Sleep(10 * time.Second)
+		conn := testAccProvider.Meta().(*gitlab.Client)
+		ref := &gitlab.GetFileOptions{
+			Ref: gitlab.String("master"),
+		}
+		f, _, err := conn.RepositoryFiles.GetFile(project.ID, fp, ref, nil)
+		if err != nil {
+			return fmt.Errorf("Cannot find file %s, error %s\n", fp, err)
+		}
+		if f == nil {
+			return fmt.Errorf("Did not find file\n")
+		}
+
+		return nil
+	}
 }
